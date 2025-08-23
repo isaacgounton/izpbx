@@ -120,17 +120,28 @@ services:
     volumes:
       - izpbx_data:/data
     
-    expose:
-      # Expose ports internally but let Coolify handle external routing
+    ports:
+      # Web Interface - Coolify will assign external ports
       - "80"
       - "443"
-      - "5060"
-      - "4569"
-      - "8089"
-      - "8088"
-      - "8001"
-      - "8003"
-      - "4445"
+      
+      # SIP/VoIP Ports  
+      - "5060:5060/tcp"
+      - "5060:5060/udp"
+      - "5160:5160/tcp"
+      - "5160:5160/udp"
+      - "4569:4569/tcp"
+      - "4569:4569/udp"
+      - "8089:8089/tcp"
+      
+      # RTP Range for audio (reduced range for containers)
+      - "10000-10200:10000-10200/udp"
+      
+      # Optional Management Ports
+      - "8088:8088/tcp"
+      - "8001:8001/tcp"
+      - "8003:8003/tcp"
+      - "4445:4445/tcp"
 
     cap_add:
       - NET_ADMIN
