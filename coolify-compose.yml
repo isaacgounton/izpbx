@@ -121,9 +121,9 @@ services:
       - izpbx_data:/data
     
     ports:
-      # Web Interface - Coolify will assign external ports
-      - "80"
-      - "443"
+      # Web Interface - Direct port mapping
+      - "8080:80"
+      - "8443:443"
       
       # SIP/VoIP Ports  
       - "5060:5060/tcp"
