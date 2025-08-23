@@ -3,7 +3,7 @@
 
 services:
   db:
-    image: docker.io/mariadb:10.11.11
+    image: mariadb:lts-ubi9
     container_name: izpbx-db
     command: --sql-mode=ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
     restart: unless-stopped
@@ -23,7 +23,7 @@ services:
       retries: 10
 
   izpbx:
-    image: docker.io/izdock/izpbx-asterisk:20.16.20
+    image: izdock/izpbx-asterisk:20.16.20-149
     container_name: izpbx
     restart: unless-stopped
     depends_on:
