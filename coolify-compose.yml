@@ -120,28 +120,17 @@ services:
     volumes:
       - izpbx_data:/data
     
-    ports:
-      # Web Interface (using different ports to avoid conflicts)
-      - "${COOLIFY_HTTP_PORT:-8080}:80"
-      - "${COOLIFY_HTTPS_PORT:-8443}:443"
-      
-      # SIP/VoIP Ports
-      - "${COOLIFY_PJSIP_PORT:-5060}:5060/tcp"
-      - "${COOLIFY_PJSIP_PORT:-5060}:5060/udp"
-      - "${COOLIFY_SIP_PORT:-5160}:5160/tcp"
-      - "${COOLIFY_SIP_PORT:-5160}:5160/udp"
-      - "${COOLIFY_IAX_PORT:-4569}:4569/tcp"
-      - "${COOLIFY_IAX_PORT:-4569}:4569/udp"
-      - "${COOLIFY_WEBRTC_PORT:-8089}:8089/tcp"
-      
-      # RTP Range (adjust as needed)
-      - "${COOLIFY_RTP_START:-10000}-${COOLIFY_RTP_END:-10200}:${APP_PORT_RTP_START:-10000}-${APP_PORT_RTP_END:-10200}/udp"
-      
-      # Optional Services
-      - "${COOLIFY_AMI_PORT:-8088}:8088/tcp"
-      - "${COOLIFY_UCP_HTTP_PORT:-8001}:8001/tcp"
-      - "${COOLIFY_UCP_HTTPS_PORT:-8003}:8003/tcp"
-      - "${COOLIFY_FOP2_PORT:-4445}:4445/tcp"
+    expose:
+      # Expose ports internally but let Coolify handle external routing
+      - "80"
+      - "443"
+      - "5060"
+      - "4569"
+      - "8089"
+      - "8088"
+      - "8001"
+      - "8003"
+      - "4445"
 
     cap_add:
       - NET_ADMIN
