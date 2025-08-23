@@ -1,6 +1,5 @@
 /data*
 /test/
 /.env
-coolify.env
 .cache_ggshield
 *.log
