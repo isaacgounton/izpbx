@@ -1808,4 +1808,63 @@ function runHooksCustom() {
 
 runHooksCustom pre-init
 runHooks
+### late-stage PAM and MySQL fixes
+function fixMySqlAuthIssues() {
+    echo "--> Applying comprehensive MySQL authentication fixes..."
+
+    # Ensure global MySQL client configuration is loaded
+    export MYSQL_HISTFILE=/dev/null
+    export MYSQL_HOST=db
+    export MYSQL_TCP_PORT=3306
+
+    # Force reload MySQL client defaults
+    mysql --print-defaults 2>/dev/null || true
+
+    # Create script to check and fix any 'mysql' user attempts
+    cat > /usr/local/bin/mysql-auth-fixer.sh <<'EOF'
+#!/bin/sh
+# Script to fix MySQL authentication attempts that default to user 'mysql'
+
+# This script can be called before any MySQL client command to ensure proper authentication
+
+# Check if any mysql command is being run without proper user specification
+if [ $# -eq 0 ]; then
+    # No arguments, force proper defaults
+    exec mysql --defaults-file=/etc/my.cnf.d/zz-global-mysql-fix.cnf
+elif echo "$1" | grep -q '^[^-]'; then
+    # Arguments provided, check first argument
+    if echo "$*" | grep -vqE '( -u | --user=|--user | --defaults-file|--defaults-extra-file)'; then
+        # No user specified, add default user
+        exec mysql --defaults-file=/etc/my.cnf.d/zz-global-mysql-fix.cnf "$@"
+    else
+        exec mysql "$@"
+    fi
+else
+    exec mysql "$@"
+fi
+EOF
+
+    chmod +x /usr/local/bin/mysql-auth-fixer.sh
+
+    echo "--> MySQL authentication fixes applied"
+}
+
+function fixPamAsterisk() {
+    echo "--> Fixing PAM configuration for asterisk..."
+
+    # Create PAM configuration for asterisk service
+    [ ! -f /etc/pam.d/asterisk ] && mkdir -p /etc/pam.d && cat > /etc/pam.d/asterisk <<EOF
+#%PAM-1.0
+auth       sufficient   pam_unix.so shadow nullok
+auth       requisite    pam_deny.so
+account    required     pam_unix.so
+session    required     pam_unix.so
+EOF
+
+    echo "--> PAM configuration for asterisk created/synced"
+}
+
+# Apply fixes
+fixMySqlAuthIssues
+fixPamAsterisk
 runHooksCustom post-init

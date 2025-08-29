@@ -1,0 +1,14 @@
+# Global MySQL client configuration to fix authentication failures
+# This prevents services from defaulting to user 'mysql' when no credentials are specified
+
+[client]
+user=asterisk
+host=db
+
+# Prevent anonymous connections that default to user 'mysql'
+[mysql]
+default-auth=mysql_native_password
+connect_expired_password=1
+
+# Ensure proper socket path
+socket=/run/mariadb/mysql.sock

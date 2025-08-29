@@ -1,31 +1,43 @@
 version: '3.8'
 
 services:
-  # MySQL client configuration fix to prevent authentication errors
-  # This sets up proper MySQL defaults to avoid "mysql@/localhost" connection attempts
+  # Enhanced MySQL client configuration fix to prevent authentication errors
+  # This sets up proper MySQL defaults and ensures MySQL password is properly configured
   izpbx:
     environment:
       - MYSQL_USER=asterisk
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_DATABASE=asterisk
+      - MYSQL_TCP_PORT=3306
+      - MYSQL_HOST=db
+      - TZ=${TZ}
     command: >
       /bin/sh -c "
-      # Ensure MySQL client has proper defaults
-      echo '[client]' > /etc/my.cnf.d/zz-izpbx-fix.cnf
-      echo 'user=asterisk' >> /etc/my.cnf.d/zz-izpbx-fix.cnf
-      echo 'password=${MYSQL_PASSWORD}' >> /etc/my.cnf.d/zz-izpbx-fix.cnf
-      echo 'host=db' >> /etc/my.cnf.d/zz-izpbx-fix.cnf
-      echo 'port=3306' >> /etc/my.cnf.d/zz-izpbx-fix.cnf
-      echo 'MySQL client configuration updated to prevent authentication failures' &&
-      # Run the original command
+      # Create comprehensive MySQL client configuration
+      echo '[client]' > /etc/my.cnf.d/zz-runtime-fix.cnf
+      echo 'user=asterisk' >> /etc/my.cnf.d/zz-runtime-fix.cnf
+      echo 'password=${MYSQL_PASSWORD}' >> /etc/my.cnf.d/zz-runtime-fix.cnf
+      echo 'host=db' >> /etc/my.cnf.d/zz-runtime-fix.cnf
+      echo 'port=3306' >> /etc/my.cnf.d/zz-runtime-fix.cnf
+      echo 'socket=/run/mariadb/mysql.sock' >> /etc/my.cnf.d/zz-runtime-fix.cnf
+      echo 'MySQL runtime client configuration created' &&
+      # Run the original supervisor command
       exec supervisord -c /etc/supervisord.conf
       "
 
-  # Ensure DB is ready and configured properly
+  # Enhanced database configuration for better compatibility
   db:
+    environment:
+      - MYSQL_DATABASE=asterisk
+      - MYSQL_USER=asterisk
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - TZ=${TZ}
     command: >
       --sql-mode=ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
       --init-file=/dev/null
       --log-warnings=1
       --skip-name-resolve
       --skip-networking=0
+      --bind-address=0.0.0.0
+      --port=3306
