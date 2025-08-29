@@ -283,6 +283,15 @@ function readfsecret() {
     return 128
   elif [ ${!2} ] ; then
     # password string  in target var if present has presedence
+### PAM Configuration
+# Create PAM configuration for asterisk to fix authentication failures
+[ ! -f /etc/pam.d/asterisk ] && mkdir -p /etc/pam.d && cat > /etc/pam.d/asterisk <<EOF
+#%PAM-1.0
+auth       sufficient   pam_unix.so shadow nullok
+auth       requisite    pam_deny.so
+account    required     pam_unix.so
+session    required     pam_unix.so
+EOF
     echo "info/warning: param#2 / target var '$2' is not empty. we refuse to overwrite present value of '$2'. abort." >&2
     return 129
   elif [ -r "${!1}" ] ; then

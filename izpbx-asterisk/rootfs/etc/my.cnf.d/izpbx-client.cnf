@@ -1,0 +1,23 @@
+[client]
+# MySQL client configuration for iZPBX
+# The password should be provided via environment variables or command line
+user=asterisk
+host=db
+port=3306
+database=asterisk
+default-character-set=utf8
+compression=no
+
+[izpbx]
+user=asterisk
+host=db
+port=3306
+database=asterisk
+default-character-set=utf8
+
+[izpbx-cdr]
+user=asterisk
+host=db
+port=3306
+database=asteriskcdrdb
+default-character-set=utf8

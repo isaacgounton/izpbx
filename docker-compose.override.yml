@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # MySQL client configuration fix to prevent authentication errors
+  # This sets up proper MySQL defaults to avoid "mysql@/localhost" connection attempts
+  izpbx:
+    environment:
+      - MYSQL_USER=asterisk
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=asterisk
+    command: >
+      /bin/sh -c "
+      # Ensure MySQL client has proper defaults
+      echo '[client]' > /etc/my.cnf.d/zz-izpbx-fix.cnf
+      echo 'user=asterisk' >> /etc/my.cnf.d/zz-izpbx-fix.cnf
+      echo 'password=${MYSQL_PASSWORD}' >> /etc/my.cnf.d/zz-izpbx-fix.cnf
+      echo 'host=db' >> /etc/my.cnf.d/zz-izpbx-fix.cnf
+      echo 'port=3306' >> /etc/my.cnf.d/zz-izpbx-fix.cnf
+      echo 'MySQL client configuration updated to prevent authentication failures' &&
+      # Run the original command
+      exec supervisord -c /etc/supervisord.conf
+      "
+
+  # Ensure DB is ready and configured properly
+  db:
+    command: >
+      --sql-mode=ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+      --init-file=/dev/null
+      --log-warnings=1
+      --skip-name-resolve
+      --skip-networking=0
