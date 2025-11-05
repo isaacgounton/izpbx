@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Enhanced MySQL client configuration fix to prevent authentication errors
@@ -16,7 +16,7 @@ services:
       # Create comprehensive MySQL client configuration
       echo '[client]' > /etc/my.cnf.d/zz-runtime-fix.cnf
       echo 'user=asterisk' >> /etc/my.cnf.d/zz-runtime-fix.cnf
-      echo 'password=${MYSQL_PASSWORD}' >> /etc/my.cnf.d/zz-runtime-fix.cnf
+      echo 'password='$MYSQL_PASSWORD >> /etc/my.cnf.d/zz-runtime-fix.cnf
       echo 'host=db' >> /etc/my.cnf.d/zz-runtime-fix.cnf
       echo 'port=3306' >> /etc/my.cnf.d/zz-runtime-fix.cnf
       echo 'socket=/run/mariadb/mysql.sock' >> /etc/my.cnf.d/zz-runtime-fix.cnf
@@ -41,3 +41,4 @@ services:
       --skip-networking=0
       --bind-address=0.0.0.0
       --port=3306
+      --default-authentication-plugin=mysql_native_password
