@@ -1,179 +1,103 @@
-# Coolify-optimized Docker Compose for izPBX
-# This file is specifically designed for Coolify deployment
+networks:
+  izpbx:
+    driver: bridge
+  ## Uncomment to run multiple deployments on same host using macvlan
+  #izpbx-ext:
+  #  driver: macvlan
+  #  driver_opts:
+  #    parent: eth0
+  #  ipam:
+  #    config:
+  #      - subnet: 10.1.1.0/24
 
 services:
   db:
-    image: mariadb:lts-ubi9
+    image: docker.io/mariadb:10.11.11
     container_name: izpbx-db
-    command: --sql-mode=ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
     restart: unless-stopped
+    command: --sql-mode=ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+    env_file:
+      - .env
     environment:
-      - TZ=${TZ:-UTC}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-asterisk}
-      - MYSQL_USER=${MYSQL_USER:-asterisk}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - TZ
+      - MYSQL_DATABASE
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+      - MYSQL_ROOT_PASSWORD
     volumes:
-      - izpbx_db:/var/lib/mysql
+      - ./data/db:/var/lib/mysql
     networks:
-      - izpbx-network
+      - izpbx
+    ports:
+      - ${APP_PORT_MYSQL}:3306
     healthcheck:
-      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h localhost -u root --silent"]
-      interval: 30s
-      timeout: 20s
-      retries: 10
-      start_period: 30s
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
   izpbx:
-    image: izdock/izpbx-asterisk:20.16.20-149
+    image: docker.io/izdock/izpbx-asterisk:20.16.21
     container_name: izpbx
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      # Database Configuration
-      - MYSQL_SERVER=db
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-asterisk}
-      - MYSQL_DATABASE_CDR=${MYSQL_DATABASE_CDR:-asteriskcdrdb}
-      - MYSQL_USER=${MYSQL_USER:-asterisk}
+      - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      
-      # System Configuration
-      - TZ=${TZ:-UTC}
-      - APP_DATA=/data
-      
-      # Network Ports (adjusted for Coolify)
-      - APP_PORT_HTTP=80
-      - APP_PORT_HTTPS=443
-      - APP_PORT_IAX=4569
-      - APP_PORT_PJSIP=5060
-      - APP_PORT_SIP=5160
-      - APP_PORT_WEBRTC=8089
-      - APP_PORT_UCP_HTTP=8001
-      - APP_PORT_UCP_HTTPS=8003
-      - APP_PORT_AMI=8088
-      - APP_PORT_RTP_START=${APP_PORT_RTP_START:-10000}
-      - APP_PORT_RTP_END=${APP_PORT_RTP_END:-10200}
-      - APP_PORT_DHCP=67
-      - APP_PORT_TFTP=69
-      - APP_PORT_NTP=123
-      - APP_PORT_FOP2=4445
-      - APP_PORT_ZABBIX=10050
-      
-      # Web Server Configuration
-      - APP_FQDN=${APP_FQDN:-}
-      - HTTPD_HTTPS_ENABLED=${HTTPD_HTTPS_ENABLED:-false}
-      - HTTPD_REDIRECT_HTTP_TO_HTTPS=${HTTPD_REDIRECT_HTTP_TO_HTTPS:-false}
-      - LETSENCRYPT_ENABLED=${LETSENCRYPT_ENABLED:-false}
-      - LETSENCRYPT_COUNTRY_CODE=${LETSENCRYPT_COUNTRY_CODE:-US}
-      - LETSENCRYPT_COUNTRY_STATE=${LETSENCRYPT_COUNTRY_STATE:-California}
-      
-      # Email Configuration
-      - SMTP_MAIL_FROM=${SMTP_MAIL_FROM:-izpbx@localhost.localdomain}
-      - SMTP_MAIL_TO=${SMTP_MAIL_TO:-root@localhost.localdomain}
-      - SMTP_RELAYHOST=${SMTP_RELAYHOST:-}
-      - SMTP_RELAYHOST_PORT=${SMTP_RELAYHOST_PORT:-25}
-      - SMTP_RELAYHOST_USERNAME=${SMTP_RELAYHOST_USERNAME:-}
-      - SMTP_RELAYHOST_PASSWORD=${SMTP_RELAYHOST_PASSWORD:-}
-      - SMTP_STARTTLS=${SMTP_STARTTLS:-false}
-      
-      # FreePBX Configuration
-      - FREEPBX_AUTOUPGRADE_CORE=${FREEPBX_AUTOUPGRADE_CORE:-true}
-      - FREEPBX_AUTOUPGRADE_MODULES=${FREEPBX_AUTOUPGRADE_MODULES:-true}
-      - FREEPBX_FIX_PERMISSION=${FREEPBX_FIX_PERMISSION:-false}
-      - FREEPBX_FREEPBX_SYSTEM_IDENT=${FREEPBX_FREEPBX_SYSTEM_IDENT:-izPBX}
-      - FREEPBX_TONEZONE=${FREEPBX_TONEZONE:-us}
-      - FREEPBX_PHPTIMEZONE=${FREEPBX_PHPTIMEZONE:-America/New_York}
-      
-      # Security Configuration
-      - FAIL2BAN_ENABLED=${FAIL2BAN_ENABLED:-true}
-      - FAIL2BAN_ASTERISK_ENABLED=${FAIL2BAN_ASTERISK_ENABLED:-true}
-      - FAIL2BAN_DEFAULT_IGNOREIP=${FAIL2BAN_DEFAULT_IGNOREIP:-127.0.0.0/8 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16}
-      - FAIL2BAN_DEFAULT_BANTIME=${FAIL2BAN_DEFAULT_BANTIME:-300}
-      - FAIL2BAN_DEFAULT_FINDTIME=${FAIL2BAN_DEFAULT_FINDTIME:-3600}
-      - FAIL2BAN_DEFAULT_MAXRETRY=${FAIL2BAN_DEFAULT_MAXRETRY:-10}
-      
-      # Service Enablement
-      - MSMTP_ENABLED=${MSMTP_ENABLED:-true}
-      - CRON_ENABLED=${CRON_ENABLED:-true}
-      - HTTPD_ENABLED=${HTTPD_ENABLED:-true}
-      - IZPBX_ENABLED=${IZPBX_ENABLED:-true}
-      - PHONEBOOK_ENABLED=${PHONEBOOK_ENABLED:-true}
-      - FOP2_ENABLED=${FOP2_ENABLED:-false}
-      - ZABBIX_ENABLED=${ZABBIX_ENABLED:-false}
-      - DHCP_ENABLED=${DHCP_ENABLED:-false}
-      - TFTP_ENABLED=${TFTP_ENABLED:-false}
-      - NTP_ENABLED=${NTP_ENABLED:-false}
-      
-      # FOP2 Configuration (if enabled)
-      - FOP2_AUTOUPGRADE=${FOP2_AUTOUPGRADE:-false}
-      - FOP2_AUTOACTIVATION=${FOP2_AUTOACTIVATION:-false}
-      - FOP2_LICENSE_NAME=${FOP2_LICENSE_NAME:-}
-      - FOP2_LICENSE_CODE=${FOP2_LICENSE_CODE:-}
-      - FOP2_LICENSE_IFACE=${FOP2_LICENSE_IFACE:-eth0}
-      
-      # Zabbix Configuration (if enabled)
-      - ZABBIX_SERVER=${ZABBIX_SERVER:-}
-      - ZABBIX_HOSTNAME=${ZABBIX_HOSTNAME:-}
-      - ZABBIX_HOSTMETADATA=${ZABBIX_HOSTMETADATA:-}
-
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_TCP_PORT=3306
+      - MYSQL_HOST=db
+      - TZ=${TZ}
     volumes:
-      - izpbx_data:/data
-    
-    ports:
-      # Web Interface - Direct port mapping
-      - "8080:80"
-      - "8443:443"
-      
-      # SIP/VoIP Ports  
-      - "5060:5060/tcp"
-      - "5060:5060/udp"
-      - "5160:5160/tcp"
-      - "5160:5160/udp"
-      - "4569:4569/tcp"
-      - "4569:4569/udp"
-      - "8089:8089/tcp"
-      
-      # RTP Range for audio (reduced range for containers)
-      - "10000-10200:10000-10200/udp"
-      
-      # Optional Management Ports
-      - "8088:8088/tcp"
-      - "8001:8001/tcp"
-      - "8003:8003/tcp"
-      - "4445:4445/tcp"
-
+      - ./data/izpbx:/data
+      - ./izpbx-mysql-fix.sh:/usr/local/bin/izpbx-mysql-fix.sh:ro
     cap_add:
       - NET_ADMIN
-    
     security_opt:
-      - apparmor:unconfined
-    
+      - apparmor=unconfined
     privileged: true
-    
     ulimits:
       nofile:
         soft: 8192
         hard: 32768
-    
     networks:
-      - izpbx-network
-    
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/admin/", "||", "exit", "1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
-
-networks:
-  izpbx-network:
-    driver: bridge
-
-volumes:
-  izpbx_db:
-    driver: local
-  izpbx_data:
-    driver: local
+      - izpbx
+    ports:
+      - ${APP_PORT_HTTP}:${APP_PORT_HTTP}
+      - ${APP_PORT_HTTPS}:${APP_PORT_HTTPS}
+      - ${APP_PORT_IAX}:${APP_PORT_IAX}
+      - ${APP_PORT_IAX}:${APP_PORT_IAX}/udp
+      - ${APP_PORT_PJSIP}:${APP_PORT_PJSIP}
+      - ${APP_PORT_PJSIP}:${APP_PORT_PJSIP}/udp
+      - ${APP_PORT_SIP}:${APP_PORT_SIP}/udp
+      - ${APP_PORT_SIP}:${APP_PORT_SIP}
+      - ${APP_PORT_WEBRTC}:${APP_PORT_WEBRTC}
+      - ${APP_PORT_UCP_HTTP}:${APP_PORT_UCP_HTTP}
+      - ${APP_PORT_UCP_HTTPS}:${APP_PORT_UCP_HTTPS}
+      - ${APP_PORT_AMI}:${APP_PORT_AMI}
+      - ${APP_PORT_RTP_START}-${APP_PORT_RTP_END}:${APP_PORT_RTP_START}-${APP_PORT_RTP_END}
+      - ${APP_PORT_RTP_START}-${APP_PORT_RTP_END}:${APP_PORT_RTP_START}-${APP_PORT_RTP_END}/udp
+      - ${APP_PORT_DHCP}:${APP_PORT_DHCP}/udp
+      - ${APP_PORT_TFTP}:${APP_PORT_TFTP}
+      - ${APP_PORT_TFTP}:${APP_PORT_TFTP}/udp
+      - ${APP_PORT_NTP}:${APP_PORT_NTP}/udp
+      - ${APP_PORT_FOP2}:${APP_PORT_FOP2}
+      - ${APP_PORT_ZABBIX}:${APP_PORT_ZABBIX}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        echo 'Waiting for database to be ready...'
+        until nc -z db 3306; do
+          echo 'Waiting for MySQL...'
+          sleep 2
+        done
+        echo 'Database is ready!'
+        /bin/bash /usr/local/bin/izpbx-mysql-fix.sh
+        exec supervisord -c /etc/supervisord.conf
