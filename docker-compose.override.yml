@@ -15,6 +15,13 @@ services:
       - TZ=${TZ}
     command: >
       /bin/sh -c "
+      # Wait for database to be ready
+      echo 'Waiting for database to be ready...'
+      until nc -z db 3306; do
+        echo 'Waiting for MySQL...'
+        sleep 2
+      done
+      echo 'Database is ready!'
       # Run MySQL authentication fix script
       /bin/bash /usr/local/bin/izpbx-mysql-fix.sh &&
       # Run the original supervisor command

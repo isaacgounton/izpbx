@@ -93,17 +93,41 @@ cat > /usr/local/bin/mysql-wrapper <<'WRAPPER_EOF'
 #!/bin/bash
 # Wrapper to ensure mysql command always uses correct credentials
 
+# If localhost is specified, redirect to db host
+ARGS="$@"
+if echo "$ARGS" | grep -q "localhost"; then
+    ARGS=$(echo "$ARGS" | sed 's/localhost/db/g')
+fi
+
 # If no --defaults-file specified and no -u/--user specified, use our defaults
-if ! echo "$@" | grep -qE '(--defaults-file|--defaults-extra-file|-u|--user)'; then
-    exec /usr/bin/mysql --defaults-file=/etc/my.cnf.d/zz-global-mysql-fix.cnf "$@"
+if ! echo "$ARGS" | grep -qE '(--defaults-file|--defaults-extra-file|-u|--user)'; then
+    exec /usr/bin/mysql.original --defaults-file=/etc/my.cnf.d/zz-global-mysql-fix.cnf $ARGS
 else
-    exec /usr/bin/mysql "$@"
+    exec /usr/bin/mysql.original $ARGS
 fi
 WRAPPER_EOF
 
 chmod +x /usr/local/bin/mysql-wrapper
 
+# Create alias for mysql commands to enforce credential usage
+cat > /etc/profile.d/mysql-aliases.sh <<'ALIAS_EOF'
+# MySQL command aliases to ensure proper authentication
+alias mysql='mysql --defaults-file=/etc/my.cnf.d/zz-global-mysql-fix.cnf'
+alias mysqldump='mysqldump --defaults-file=/etc/my.cnf.d/zz-global-mysql-fix.cnf'
+alias mysqladmin='mysqladmin --defaults-file=/etc/my.cnf.d/zz-global-mysql-fix.cnf'
+ALIAS_EOF
+
+# Source the aliases immediately
+source /etc/profile.d/mysql-aliases.sh
+
+# Symlink mysql binary to wrapper (backup original first)
+if [ ! -f /usr/bin/mysql.original ]; then
+    cp /usr/bin/mysql /usr/bin/mysql.original
+    cp /usr/local/bin/mysql-wrapper /usr/bin/mysql
+fi
+
 echo "==> MySQL authentication fixes applied successfully"
 echo "    User: ${MYSQL_USR}"
 echo "    Host: ${MYSQL_SRV}"
 echo "    Port: ${MYSQL_PRT}"
+echo "    Wrapper: /usr/bin/mysql -> mysql-wrapper"
