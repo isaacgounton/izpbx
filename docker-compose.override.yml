@@ -4,6 +4,9 @@ services:
   # Enhanced MySQL client configuration fix to prevent authentication errors
   # This sets up proper MySQL defaults and ensures MySQL password is properly configured
   izpbx:
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - ./izpbx-mysql-fix.sh:/usr/local/bin/izpbx-mysql-fix.sh:ro
     environment:
@@ -13,20 +16,19 @@ services:
       - MYSQL_TCP_PORT=3306
       - MYSQL_HOST=db
       - TZ=${TZ}
-    command: >
-      /bin/sh -c "
-      # Wait for database to be ready
-      echo 'Waiting for database to be ready...'
-      until nc -z db 3306; do
-        echo 'Waiting for MySQL...'
-        sleep 2
-      done
-      echo 'Database is ready!'
-      # Run MySQL authentication fix script
-      /bin/bash /usr/local/bin/izpbx-mysql-fix.sh &&
-      # Run the original supervisor command
-      exec supervisord -c /etc/supervisord.conf
-      "
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        echo 'Waiting for database to be ready...'
+        until nc -z db 3306; do
+          echo 'Waiting for MySQL...'
+          sleep 2
+        done
+        echo 'Database is ready!'
+        /bin/bash /usr/local/bin/izpbx-mysql-fix.sh
+        exec supervisord -c /etc/supervisord.conf
 
   # Enhanced database configuration for better compatibility
   db:
@@ -36,6 +38,12 @@ services:
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - TZ=${TZ}
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     command: >
       --sql-mode=ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
       --init-file=/dev/null
