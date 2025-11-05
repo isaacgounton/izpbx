@@ -4,6 +4,8 @@ services:
   # Enhanced MySQL client configuration fix to prevent authentication errors
   # This sets up proper MySQL defaults and ensures MySQL password is properly configured
   izpbx:
+    volumes:
+      - ./izpbx-mysql-fix.sh:/usr/local/bin/izpbx-mysql-fix.sh:ro
     environment:
       - MYSQL_USER=asterisk
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
@@ -13,44 +15,8 @@ services:
       - TZ=${TZ}
     command: >
       /bin/sh -c "
-      # Create comprehensive MySQL client configuration
-      echo '[client]' > /etc/my.cnf.d/zz-runtime-fix.cnf
-      echo 'user=asterisk' >> /etc/my.cnf.d/zz-runtime-fix.cnf
-      echo 'password='$MYSQL_PASSWORD >> /etc/my.cnf.d/zz-runtime-fix.cnf
-      echo 'host=db' >> /etc/my.cnf.d/zz-runtime-fix.cnf
-      echo 'port=3306' >> /etc/my.cnf.d/zz-runtime-fix.cnf
-      echo 'socket=/run/mariadb/mysql.sock' >> /etc/my.cnf.d/zz-runtime-fix.cnf
-      # Create global MySQL config for authentication fixes
-      echo '[client]' > /etc/my.cnf.d/zz-global-mysql-fix.cnf
-      echo 'user=asterisk' >> /etc/my.cnf.d/zz-global-mysql-fix.cnf
-      echo 'password='$MYSQL_PASSWORD >> /etc/my.cnf.d/zz-global-mysql-fix.cnf
-      echo 'host=db' >> /etc/my.cnf.d/zz-global-mysql-fix.cnf
-      echo 'port=3306' >> /etc/my.cnf.d/zz-global-mysql-fix.cnf
-      echo 'socket=/run/mariadb/mysql.sock' >> /etc/my.cnf.d/zz-global-mysql-fix.cnf
-      # Create MySQL defaults file for root
-      echo '[client]' > /root/.my.cnf
-      echo 'user=asterisk' >> /root/.my.cnf
-      echo 'password='$MYSQL_PASSWORD >> /root/.my.cnf
-      echo 'host=db' >> /root/.my.cnf
-      echo 'port=3306' >> /root/.my.cnf
-      echo 'socket=/run/mariadb/mysql.sock' >> /root/.my.cnf
-      chmod 600 /root/.my.cnf
-      # Create MySQL defaults file for asterisk user
-      mkdir -p /home/asterisk
-      echo '[client]' > /home/asterisk/.my.cnf
-      echo 'user=asterisk' >> /home/asterisk/.my.cnf
-      echo 'password='$MYSQL_PASSWORD >> /home/asterisk/.my.cnf
-      echo 'host=db' >> /home/asterisk/.my.cnf
-      echo 'port=3306' >> /home/asterisk/.my.cnf
-      echo 'socket=/run/mariadb/mysql.sock' >> /home/asterisk/.my.cnf
-      chmod 600 /home/asterisk/.my.cnf
-      chown asterisk:asterisk /home/asterisk/.my.cnf
-      echo 'MySQL client configurations created' &&
-      # Export environment variables for MySQL
-      export MYSQL_USER=asterisk
-      export MYSQL_PASSWORD='$MYSQL_PASSWORD'
-      export MYSQL_HOST=db
-      export MYSQL_TCP_PORT=3306
+      # Run MySQL authentication fix script
+      /bin/bash /usr/local/bin/izpbx-mysql-fix.sh &&
       # Run the original supervisor command
       exec supervisord -c /etc/supervisord.conf
       "
