@@ -18,9 +18,11 @@ services:
     networks:
       - izpbx-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h localhost -u root --silent"]
+      interval: 30s
       timeout: 20s
       retries: 10
+      start_period: 30s
 
   izpbx:
     image: izdock/izpbx-asterisk:20.16.20-149
