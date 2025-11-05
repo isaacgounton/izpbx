@@ -874,11 +874,12 @@ function cfgService_izpbx() {
     fi
     
     # fixing missing documentation that prevent loading extra codecs (like codec_opus)
-    if [ ! -z "${APP_DATA}" ]; then
-      if [ "$(ls -1 "${appDataDirs[ASTVARLIBDIR]}.dist/documentation/thirdparty/")" != "$(ls -1 "${APP_DATA}${appDataDirs[ASTVARLIBDIR]}/documentation/thirdparty/")" ]; then
-        echo "---> fixing asterisk documentation directory... ${APP_DATA}${appDataDirs[ASTVARLIBDIR]}/documentation/thirdparty"
-        cp -af "${appDataDirs[ASTVARLIBDIR]}.dist/documentation/thirdparty"/. "${APP_DATA}${appDataDirs[ASTVARLIBDIR]}/documentation/thirdparty"/
-      fi
+    if [ -n "${APP_DATA}" ]; then
+      echo "---> checking asterisk documentation directory..."
+      rsync -avc --delete "${appDataDirs[ASTVARLIBDIR]}.dist/documentation/" "${APP_DATA}${appDataDirs[ASTVARLIBDIR]}/documentation/" --dry-run | grep -q '^' && {
+        echo "---> fixing asterisk documentation directory... ${DST}"
+        rsync -avc --delete "${appDataDirs[ASTVARLIBDIR]}.dist/documentation/" "${APP_DATA}${appDataDirs[ASTVARLIBDIR]}/documentation/"
+      }
     fi
     
     # FIXME @20200318 freepbx 15.x warnings workaround
@@ -1286,6 +1287,10 @@ function cfgService_freepbx_install() {
     # apply workarounds and fix for FreePBX unresolved issues
     freepbxSettingsFix
 
+    # FIXME @20251014 framework 16.0.41 issue preventing initial setup completion
+    FRAMEWORK_VERSION=$(fwconsole ma list --format=json | jq -s -r '.[] | select(.data | type=="array") | .data[] | select(.[0]=="framework") | .[1]')
+    [[ $FRAMEWORK_VERSION =~ ^16\.0\.41($|\.) ]] && fwconsole ma downloadinstall framework --tag=16.0.40
+
     # fix permissions before installing FreePBX modules
     freepbxChown
 
@@ -1669,8 +1674,7 @@ function cfgService_msmtp() {
     USR_HOME="$(getent passwd "$APP_USR" | cut -d: -f6)"
 
     echo "defaults
-auth     off
-tls      off
+$([ "${SMTP_STARTTLS}" = "true" ] && echo "tls      on" || echo "tls      off")
 $([ "${SMTP_STARTTLS}" = "true" ] && echo "tls_starttls   on" || echo "tls_starttls   off")
 $([ "${SMTP_STARTTLS}" = "true" ] && echo "tls_trust_file /etc/pki/tls/certs/ca-bundle.crt")
 logfile  ${USR_HOME}/msmtp.log
@@ -1679,6 +1683,8 @@ account  default
 $([ ! -z "${SMTP_RELAYHOST}" ]          && echo "host     ${SMTP_RELAYHOST}")
 $([ ! -z "${SMTP_RELAYHOST_PORT}" ]     && echo "port     ${SMTP_RELAYHOST_PORT}")
 $([ ! -z "${SMTP_MAIL_FROM}" ]          && echo "from     ${SMTP_MAIL_FROM}")
+
+$([ ! -z "${SMTP_RELAYHOST_USERNAME}" ] && echo "auth     on" || echo "auth     off")
 $([ ! -z "${SMTP_RELAYHOST_USERNAME}" ] && echo "user     ${SMTP_RELAYHOST_USERNAME}")
 $([ ! -z "${SMTP_RELAYHOST_PASSWORD}" ] && echo "password ${SMTP_RELAYHOST_PASSWORD}")
 " > "/etc/msmtprc"
