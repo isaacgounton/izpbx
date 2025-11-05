@@ -68,8 +68,8 @@ services:
     networks:
       - izpbx
     ports:
-      - ${APP_PORT_HTTP}:${APP_PORT_HTTP}
-      - ${APP_PORT_HTTPS}:${APP_PORT_HTTPS}
+      - 8080:${APP_PORT_HTTP}
+      - 8443:${APP_PORT_HTTPS}
       - ${APP_PORT_IAX}:${APP_PORT_IAX}
       - ${APP_PORT_IAX}:${APP_PORT_IAX}/udp
       - ${APP_PORT_PJSIP}:${APP_PORT_PJSIP}
